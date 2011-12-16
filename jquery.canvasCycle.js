@@ -46,12 +46,12 @@
 					items: $(this).find('img'),
 					canvas_context: opts.canvas[0].getContext('2d'),
 					fx: $.fn.canvasCycle.fx[opts.fx],
-					next_slide: opts.index + 1,
+					next_slide: opts.index,
 					timeout_id: null,
 					interval_id: null,
-					invert: false
-				}),
-				first_round= true;
+					invert: false,
+					firstRound: true
+				});
 			
 			if(context.items.length < 2) {
 				return this;
@@ -77,47 +77,64 @@
 			
 			var load_canvas_cycle= function(){
 				context.canvas.bind('canvas_cycle.start', function(){
-						if(!context.stretch) {
-							context.width= {
-								index: context.items[context.index].width,
-								next_slide: context.items[context.next_slide].width
-							}
-							context.height= {
-								index: context.items[context.index].height,
-								next_slide: context.items[context.next_slide].height
-							}
+					if(!context.stretch) {
+						context.width= {
+							index: context.items[context.index].width,
+							next_slide: context.items[context.next_slide].width
 						}
-						
-						var cycle_start= function(){
-							if($.isFunction(context.before)) {
-								context.before();
-							}
-							context.fx.call(_this, context);
-							if($.isFunction(context.after)) {
-								context.after();
-							}
-						};
-						if(!first_round) {
-							context.timeout_id= setTimeout(cycle_start, context.timeout + context.speed);
+						context.height= {
+							index: context.items[context.index].height,
+							next_slide: context.items[context.next_slide].height
 						}
-						else {
-							first_round= false;
-							cycle_start();
+					}
+					
+					var cycle_start= function(effect){
+						if (!$.isFunction(effect)) {
+							effect = context.fx;
 						}
-					}).bind('canvas_cycle.next', function(){
-						if($.isFunction(context.end)) {
-							context.end();
+						if($.isFunction(context.before)) {
+							context.before();
 						}
-						context.index= context.next_slide;
-						if(!context.items[++context.next_slide]) {
-							context.next_slide= 0;
+						effect.call(_this, context);
+						if($.isFunction(context.after)) {
+							context.after();
 						}
-						context.canvas.trigger('canvas_cycle.start');
-					}).bind('canvas_cycle.previous', function(){
-						log('previous!!');
-					}).bind('canvas_cycle.stop', function(){
-						log('stop!!');
-					});
+					};
+					if(!context.firstRound) {
+						context.timeout_id= setTimeout(cycle_start, context.timeout);
+						_this.children(':visible:not(canvas)').hide();
+					}
+					else {
+						cycle_start($.fn.canvasCycle.fx.noEffect);
+					}
+				}).bind('canvas_cycle.next', function(){
+					if($.isFunction(context.end)) {
+						context.end();
+					}
+					
+					if (context.firstRound) {
+						context.firstRound= false;
+					}
+					context.index= context.next_slide;
+					context.next_slide++;
+					// arithmetic clock
+					context.next_slide %= context.items.length;
+					context.canvas.trigger('canvas_cycle.start');
+				}).bind('canvas_cycle.previous', function(){
+					if($.isFunction(context.end)) {
+						context.end();
+					}
+					
+					if (context.firstRound) {
+						context.firstRound= false;
+					}
+					context.index= context.next_slide;
+					// counter-clockwise arithmetic clock
+					context.next_slide = (context.next_slide + (context.items.length - 1)) % context.items.length;
+					context.canvas.trigger('canvas_cycle.start');
+				}).bind('canvas_cycle.stop', function(){
+					log('stop!!');
+				});
 				
 				if(loader_interval) {
 					context.canvas_context.clearRect(0, 0, context.max_width, context.max_height);
@@ -152,6 +169,11 @@
 	}
 	
 	$.fn.canvasCycle.fx = {
+		noEffect: function(context){
+			context.canvas_context.clearRect(0, 0, context.max_width, context.max_height);
+			context.canvas_context.drawImage(context.items[context.index], 0, 0, context.width.index, context.height.index);
+			context.canvas.trigger('canvas_cycle.next');
+		},
 		fade: function(context){
 			var _this= this,
 				opacity_step= 1,
