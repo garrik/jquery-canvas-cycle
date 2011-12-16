@@ -10,7 +10,7 @@
  *
  * Inspired by:
  *	1) M. Alsup http://jquery.malsup.com/cycle/
- */
+ *
  */
 (function($) {
 	var isWindowLoaded= false;
